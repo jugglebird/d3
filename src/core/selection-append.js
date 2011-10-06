@@ -13,7 +13,6 @@ d3_selectionPrototype.append = function(name) {
     appendNS = function () {
       var svg = document.createElementNS(name.space, name.local);
       // set auto dimensions until set latter in viz document
-      debugger;
       svg.setAttribute('width', 300);
       svg.setAttribute('height', 300);
       var frag = document.createDocumentFragment(true);
@@ -30,7 +29,7 @@ d3_selectionPrototype.append = function(name) {
               this.setAttribute('height', dims['height']);                    
           }
       });
-      // svgweb.appendChild(svg, node);
+      svgweb.appendChild(svg, this);
       // for MSIE
       if(frag._fakeNode){
           frag = frag._fakeNode;

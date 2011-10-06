@@ -29,7 +29,7 @@ function setup_select_functions(){
         } else {
           return this[i];
         }
-      }
+      };
 
       return results;
     }
@@ -43,17 +43,19 @@ function setup_select_functions(){
     }
 
     var querySelectorAll = typeof Sizzle == 'function' ? Sizzle : jQuery;
-    
 
+
+    var _d3_selectAll = d3_selectAll;
     d3_selectAll = function(s, n){
         // svgweb returns an actual svg node created in the document for 
         // reasons I don't understand, but makes the proxy node available 
         // via _fakeNode
-        if(msie){
+        if(msie && n._fakeNode){
             n = n._fakeNode;
         }
         if(!n._nodeXML){
-            throw('Could not find property _nodeXML');                
+            return _d3_selectAll(s, n);
+            // throw('Could not find property _nodeXML');                
         }
         // svgweb proxy objects have a _nodeXML property containing an SVG 
         // document that is a representation of what the flash element is 
@@ -71,7 +73,7 @@ function setup_select_functions(){
             }          
         }
         return nodes;
-    }
+    };
 
     var _d3_select = d3_select;
     // Mostly the same as d3_selectAll above
@@ -83,7 +85,7 @@ function setup_select_functions(){
         var elem = n._handler._getNode(result, n._handler);
         n._getFakeNode(elem)._attached = n._attached;
         return elem;
-    }
+    };
 }
 
 if(renderer() === 'svgweb'){
@@ -94,9 +96,11 @@ if(renderer() === 'svgweb'){
 if (!('map' in Array.prototype)) {
     Array.prototype.map= function(mapper, that /*opt*/) {
         var other= new Array(this.length);
-        for (var i= 0, n= this.length; i<n; i++)
-            if (i in this)
+        for (var i= 0, n= this.length; i<n; i++) {
+            if (i in this) {
                 other[i]= mapper.call(that, this[i], i, this);
+            }
+        }
         return other;
     };
 }
