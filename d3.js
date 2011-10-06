@@ -1385,23 +1385,58 @@ d3_selectionPrototype.style = function(name, value, priority) {
       .getPropertyValue(name);
 
   function styleNull() {
-    this.style.removeProperty(name);
+    d3_removeStyleProperty(this.style, name);
   }
 
   function styleConstant() {
-    this.style.setProperty(name, value, priority);
+    d3_setStyleProperty(this.style, name, value, priority);
   }
 
   function styleFunction() {
     var x = value.apply(this, arguments);
-    if (x == null) this.style.removeProperty(name);
-    else this.style.setProperty(name, x, priority);
+    if (x == null) d3_removeStyleProperty(this.style, name);
+    else d3_setStyleProperty(this.style, name, x, priority);
   }
 
   return this.each(value == null
       ? styleNull : (typeof value === "function"
       ? styleFunction : styleConstant));
 };
+
+(function(){
+  // CamelCase code copied from jQuery
+  var rdashAlpha = /-([a-z])/ig;
+  var fcamelCase = function( all, letter ) {
+  	return letter.toUpperCase();
+  };
+
+  function camelCase( string ) {
+    return string.replace( rdashAlpha, fcamelCase );
+  }
+
+  // IE < 9 does not support the style.setProperty method. These workarounds
+  // can be used to ensure that at least IE 8 (untested in earlier versions)
+  // can support calls to the d3 .style('att', 'value') method
+  window.d3_setStyleProperty = function(style, name, value, priority){
+    if ('setProperty' in style) {
+      style.setProperty(name, value, priority);
+    } else {
+      // For IE < 9
+      name = camelCase(name); // for properties like background-color
+      style.setAttribute(name, value, priority);
+    }
+  }
+
+  window.d3_removeStyleProperty = function(style, name){
+    if ('removeProperty' in style) {
+      style.removeProperty(name);
+    } else {
+      // For IE < 9
+      name = camelCase(name);
+      style.removeAttribute(name);
+    }
+  }
+})()
 d3_selectionPrototype.property = function(name, value) {
 
   // If no value is specified, return the first value.
@@ -1426,10 +1461,21 @@ d3_selectionPrototype.property = function(name, value) {
       ? propertyFunction : propertyConstant));
 };
 d3_selectionPrototype.text = function(value) {
-  return arguments.length < 1 ? this.node().textContent
-      : (this.each(typeof value === "function"
-      ? function() { this.textContent = value.apply(this, arguments); }
-      : function() { this.textContent = value; }));
+  if (this.node()._fakeNode) {
+    if (arguments.length < 1) {
+      return this.node().textContent;
+    } else {
+      return this.each(typeof value === "function"
+        ? function() { this.appendChild(document.createTextNode(value.apply(this, arguments), true)); }
+        : function() { this.appendChild(document.createTextNode(value, true)); }
+      );
+    }
+  } else {
+    return arguments.length < 1 ? this.node().textContent
+        : (this.each(typeof value === "function"
+        ? function() { this.textContent = value.apply(this, arguments); }
+        : function() { this.textContent = value; }));
+  }
 };
 d3_selectionPrototype.html = function(value) {
   return arguments.length < 1 ? this.node().innerHTML
@@ -1452,7 +1498,6 @@ d3_selectionPrototype.append = function(name) {
     appendNS = function () {
       var svg = document.createElementNS(name.space, name.local);
       // set auto dimensions until set latter in viz document
-      debugger;
       svg.setAttribute('width', 300);
       svg.setAttribute('height', 300);
       var frag = document.createDocumentFragment(true);
@@ -1469,7 +1514,7 @@ d3_selectionPrototype.append = function(name) {
               this.setAttribute('height', dims['height']);                    
           }
       });
-      // svgweb.appendChild(svg, node);
+      svgweb.appendChild(svg, this);
       // for MSIE
       if(frag._fakeNode){
           frag = frag._fakeNode;
@@ -1823,7 +1868,7 @@ function setup_select_functions(){
         } else {
           return this[i];
         }
-      }
+      };
 
       return results;
     }
@@ -1837,17 +1882,19 @@ function setup_select_functions(){
     }
 
     var querySelectorAll = typeof Sizzle == 'function' ? Sizzle : jQuery;
-    
 
+
+    var _d3_selectAll = d3_selectAll;
     d3_selectAll = function(s, n){
         // svgweb returns an actual svg node created in the document for 
         // reasons I don't understand, but makes the proxy node available 
         // via _fakeNode
-        if(msie){
+        if(msie && n._fakeNode){
             n = n._fakeNode;
         }
         if(!n._nodeXML){
-            throw('Could not find property _nodeXML');                
+            return _d3_selectAll(s, n);
+            // throw('Could not find property _nodeXML');                
         }
         // svgweb proxy objects have a _nodeXML property containing an SVG 
         // document that is a representation of what the flash element is 
@@ -1865,7 +1912,7 @@ function setup_select_functions(){
             }          
         }
         return nodes;
-    }
+    };
 
     var _d3_select = d3_select;
     // Mostly the same as d3_selectAll above
@@ -1877,7 +1924,7 @@ function setup_select_functions(){
         var elem = n._handler._getNode(result, n._handler);
         n._getFakeNode(elem)._attached = n._attached;
         return elem;
-    }
+    };
 }
 
 if(renderer() === 'svgweb'){
@@ -1888,9 +1935,11 @@ if(renderer() === 'svgweb'){
 if (!('map' in Array.prototype)) {
     Array.prototype.map= function(mapper, that /*opt*/) {
         var other= new Array(this.length);
-        for (var i= 0, n= this.length; i<n; i++)
-            if (i in this)
+        for (var i= 0, n= this.length; i<n; i++) {
+            if (i in this) {
                 other[i]= mapper.call(that, this[i], i, this);
+            }
+        }
         return other;
     };
 }
@@ -2095,7 +2144,7 @@ d3_transitionPrototype.styleTween = function(name, tween, priority) {
   return this.tween("style." + name, function(d, i) {
     var f = tween.call(this, d, i, window.getComputedStyle(this, null).getPropertyValue(name));
     return f && function(t) {
-      this.style.setProperty(name, f(t), priority);
+      d3_setStyleProperty(this.style, name, f(t), priority);
     };
   });
 };
