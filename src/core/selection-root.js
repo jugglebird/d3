@@ -86,6 +86,50 @@ function setup_select_functions(){
         n._getFakeNode(elem)._attached = n._attached;
         return elem;
     };
+    
+    if (msie) {
+      var _d3_selectionPrototype_text = d3_selectionPrototype.text;
+      d3_selectionPrototype.text = function(value) {
+        // If no value is specified, return the first value.
+        if (arguments.length < 1) {
+          return first(function() {
+            return this.node().textContent;
+          });
+        }
+
+        /** @this {Element} */
+        function textConstant() {
+          if (this.firstChild) {
+            this.removeChild(this.firstChild);        
+          }
+          // call with second argument for svgweb. Doesn't affect normal rendering
+          if (this._fakeNode) {
+            this.appendChild(document.createTextNode(value, true));
+          } else {
+            this.appendChild(document.createTextNode(value));
+          }
+        }
+
+        /** @this {Element} */
+        function textFunction() {
+          var x = value.apply(this, arguments);
+          if (x != null) {
+            if (this.firstChild) {
+              this.removeChild(this.firstChild);        
+            }
+            // call with second argument for svgweb. Doesn't affect normal rendering
+            if (this._fakeNode) {
+              this.appendChild(document.createTextNode(x, true));
+            } else {
+              this.appendChild(document.createTextNode(x));
+            }
+          }
+        }
+        return this.each(typeof value === "function"
+            ? textFunction : textConstant);
+      };
+    }
+    
 }
 
 if(renderer() === 'svgweb'){

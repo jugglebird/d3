@@ -1232,6 +1232,41 @@ d3.selection = function() {
 };
 
 d3.selection.prototype = d3_selectionPrototype;
+
+(function(){
+  // CamelCase code copied from jQuery
+  var rdashAlpha = /-([a-z])/ig;
+  var fcamelCase = function( all, letter ) {
+  	return letter.toUpperCase();
+  };
+
+  function camelCase( string ) {
+    return string.replace( rdashAlpha, fcamelCase );
+  }
+
+  // IE < 9 does not support the style.setProperty method. These workarounds
+  // can be used to ensure that at least IE 8 (untested in earlier versions)
+  // can support calls to the d3 .style('att', 'value') method
+  window.d3_setStyleProperty = function(style, name, value, priority){
+    if ('setProperty' in style) {
+      style.setProperty(name, value, priority);
+    } else {
+      // For IE < 9
+      name = camelCase(name); // for properties like background-color
+      style.setAttribute(name, value, priority);
+    }
+  };
+
+  window.d3_removeStyleProperty = function(style, name){
+    if ('removeProperty' in style) {
+      style.removeProperty(name);
+    } else {
+      // For IE < 9
+      name = camelCase(name);
+      style.removeAttribute(name);
+    }
+  };
+})();
 d3_selectionPrototype.select = function(selector) {
   var subgroups = [],
       subgroup,
@@ -1385,58 +1420,23 @@ d3_selectionPrototype.style = function(name, value, priority) {
       .getPropertyValue(name);
 
   function styleNull() {
-    d3_removeStyleProperty(this.style, name);
+    window.d3_removeStyleProperty(this.style, name);
   }
 
   function styleConstant() {
-    d3_setStyleProperty(this.style, name, value, priority);
+    window.d3_setStyleProperty(this.style, name, value, priority);
   }
 
   function styleFunction() {
     var x = value.apply(this, arguments);
-    if (x == null) d3_removeStyleProperty(this.style, name);
-    else d3_setStyleProperty(this.style, name, x, priority);
+    if (x == null) window.d3_removeStyleProperty(this.style, name);
+    else window.d3_setStyleProperty(this.style, name, x, priority);
   }
 
   return this.each(value == null
       ? styleNull : (typeof value === "function"
       ? styleFunction : styleConstant));
 };
-
-(function(){
-  // CamelCase code copied from jQuery
-  var rdashAlpha = /-([a-z])/ig;
-  var fcamelCase = function( all, letter ) {
-  	return letter.toUpperCase();
-  };
-
-  function camelCase( string ) {
-    return string.replace( rdashAlpha, fcamelCase );
-  }
-
-  // IE < 9 does not support the style.setProperty method. These workarounds
-  // can be used to ensure that at least IE 8 (untested in earlier versions)
-  // can support calls to the d3 .style('att', 'value') method
-  window.d3_setStyleProperty = function(style, name, value, priority){
-    if ('setProperty' in style) {
-      style.setProperty(name, value, priority);
-    } else {
-      // For IE < 9
-      name = camelCase(name); // for properties like background-color
-      style.setAttribute(name, value, priority);
-    }
-  }
-
-  window.d3_removeStyleProperty = function(style, name){
-    if ('removeProperty' in style) {
-      style.removeProperty(name);
-    } else {
-      // For IE < 9
-      name = camelCase(name);
-      style.removeAttribute(name);
-    }
-  }
-})()
 d3_selectionPrototype.property = function(name, value) {
 
   // If no value is specified, return the first value.
@@ -1461,21 +1461,10 @@ d3_selectionPrototype.property = function(name, value) {
       ? propertyFunction : propertyConstant));
 };
 d3_selectionPrototype.text = function(value) {
-  if (this.node()._fakeNode) {
-    if (arguments.length < 1) {
-      return this.node().textContent;
-    } else {
-      return this.each(typeof value === "function"
-        ? function() { this.appendChild(document.createTextNode(value.apply(this, arguments), true)); }
-        : function() { this.appendChild(document.createTextNode(value, true)); }
-      );
-    }
-  } else {
-    return arguments.length < 1 ? this.node().textContent
-        : (this.each(typeof value === "function"
-        ? function() { this.textContent = value.apply(this, arguments); }
-        : function() { this.textContent = value; }));
-  }
+  return arguments.length < 1 ? this.node().textContent
+      : (this.each(typeof value === "function"
+      ? function() { this.textContent = value.apply(this, arguments); }
+      : function() { this.textContent = value; }));
 };
 d3_selectionPrototype.html = function(value) {
   return arguments.length < 1 ? this.node().innerHTML
@@ -1925,6 +1914,50 @@ function setup_select_functions(){
         n._getFakeNode(elem)._attached = n._attached;
         return elem;
     };
+    
+    if (msie) {
+      var _d3_selectionPrototype_text = d3_selectionPrototype.text;
+      d3_selectionPrototype.text = function(value) {
+        // If no value is specified, return the first value.
+        if (arguments.length < 1) {
+          return first(function() {
+            return this.node().textContent;
+          });
+        }
+
+        /** @this {Element} */
+        function textConstant() {
+          if (this.firstChild) {
+            this.removeChild(this.firstChild);        
+          }
+          // call with second argument for svgweb. Doesn't affect normal rendering
+          if (this._fakeNode) {
+            this.appendChild(document.createTextNode(value, true));
+          } else {
+            this.appendChild(document.createTextNode(value));
+          }
+        }
+
+        /** @this {Element} */
+        function textFunction() {
+          var x = value.apply(this, arguments);
+          if (x != null) {
+            if (this.firstChild) {
+              this.removeChild(this.firstChild);        
+            }
+            // call with second argument for svgweb. Doesn't affect normal rendering
+            if (this._fakeNode) {
+              this.appendChild(document.createTextNode(x, true));
+            } else {
+              this.appendChild(document.createTextNode(x));
+            }
+          }
+        }
+        return this.each(typeof value === "function"
+            ? textFunction : textConstant);
+      };
+    }
+    
 }
 
 if(renderer() === 'svgweb'){
@@ -2144,7 +2177,7 @@ d3_transitionPrototype.styleTween = function(name, tween, priority) {
   return this.tween("style." + name, function(d, i) {
     var f = tween.call(this, d, i, window.getComputedStyle(this, null).getPropertyValue(name));
     return f && function(t) {
-      d3_setStyleProperty(this.style, name, f(t), priority);
+      window.d3_setStyleProperty(this.style, name, f(t), priority);
     };
   });
 };
