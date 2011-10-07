@@ -1,8 +1,13 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Hello, data!</title>
-    <script type="text/javascript" src="../../d3.js"></script>
+    <title>Hello, SVGWeb!</title>
+    <script src="../../lib/jquery/jquery.min.js"></script>
+    <!--[if lt IE 9]>
+    <script src="../../lib/svgweb/svg-uncompressed.js" data-path="../../lib/svgweb/" data-debug="true"></script>
+    <![endif]-->
+    <script src="../../d3.js"></script>
+
     <style type="text/css">
 
 body {
@@ -10,55 +15,73 @@ body {
   text-rendering: optimizeLegibility;
   margin: 1em;
 }
-
-#cells {
-  position: relative;
-  margin-top: .5em;
-  height: 300px;
-  overflow: hidden;
-}
-
-.cell {
-  position: absolute;
-  background: steelblue;
-  color: white;
-  width: 28px;
-  text-align: center;
-  padding-top: 6px;
-  top: 300px;
-  bottom: 0;
-  background: -webkit-gradient(linear, left top, left bottom, from(transparent), to(steelblue));
-  -webkit-transition-property: top, background-color;
-  -webkit-transition-duration: 500ms;
-  -webkit-transition-timing-function: ease, linear;
-}
-
     </style>
+    
+<script>
+var data = [4, 8, 15, 16, 23, 42];
+
+function populate_via_d3() {
+  $("#dynamic").text("");
+  
+  var vis = d3.select("#dynamic")
+    .append("svg:svg")
+    .attr("width", 250)
+    .attr("height", 150)
+    .style("border", "1px solid black");
+
+  var box = vis.append("svg:g")
+    .attr("width", 250)
+    .attr("height", 150)
+
+  box.append("svg:rect")
+    .attr("width", 36)
+    .attr("height", 36)
+    .attr("x", 30)
+    .attr("y", 30)
+    .attr("fill", "red");
+
+  box.append("svg:text")
+    .attr("x", "80")
+    .attr("y", "80")
+    .attr("dy", ".35em")
+    .attr("text-anchor", "middle")
+    .attr("stroke-width", 0)
+    .attr("font-family", "Verdana")
+    .attr("font-size", "24")
+    .style("fill", "blue")
+    .text(function(d) {return "DYNAMIC";});
+}
+
+if (window.svgweb) {
+  window.onsvgload = function() {
+    populate_via_d3();
+  };
+} else {
+  jQuery(document).ready(function() {
+    populate_via_d3();
+  });
+}
+</script>    
   </head>
   <body>
-    Your lucky numbers are:<br>
-    <div id="cells"></div>
-    <script type="text/javascript">
+    <h1>SVGWeb/D3 Examples</h1>
+    
+    <h2>D3-Generated SVG file</h2>
+    <div id="dynamic">Loading&hellip;</div>
 
-var n = 10;
+    <h2>Inline Static SVG file</h2>
+    <!--[if lt IE 9]><script type="image/svg+xml"><![endif]-->
+    <svg id="mySVG" width="250" height="150" style="border: 1px solid black;" xmlns:dc="http://purl.org/dc/elements/1.1/">
+      <g id="myGroup">
+        <rect id="myRect" width="36.416" height="36.416" x="30" y="30" fill="red"/>
+        <text id="myText" x="80" y="80" font-family="Verdana" font-size="24" fill="blue">Inline static</text>
+      </g>
+    </svg>
+    <!--[if lt IE 9]></script><![endif]-->
 
-d3.select("#cells")
-  .selectAll("div")
-    .data(d3.range(n))
-  .enter().append("div")
-    .attr("class", "cell")
-    .style("left", function(i) { return i * 30; });
+    <h2>Linked Static SVG file</h2>
+    <object type="image/svg+xml" data="sample.svg" svgname="sample" width="250" height="150"
+            id="__svg__random___2__object" style="overflow-x: hidden; overflow-y: hidden; visibility: visible; "></object>
 
-function transform() {
-  d3.selectAll(".cell")
-      .data(d3.range(n).map(Math.random))
-      .style("top", function(d) { return (1 - d) * 300; })
-      .style("background-color", function(d) { return "rgb(" + ~~(d * 255) + ",50,100)"; })
-      .text(function(d) { return ~~(d * 100); });
-}
-
-window.addEventListener("keypress", transform, false);
-
-    </script>
   </body>
 </html>

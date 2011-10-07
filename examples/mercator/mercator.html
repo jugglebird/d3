@@ -3,10 +3,13 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
     <title>Mercator Projection</title>
-    <script type="text/javascript" src="../../d3.js"></script>
-    <script type="text/javascript" src="../../d3.geo.js"></script>
     <script type="text/javascript" src="../../lib/jquery/jquery.min.js"></script>
     <script type="text/javascript" src="../../lib/jquery-ui/jquery-ui.min.js"></script>
+    <!--[if lt IE 9]>
+    <script src="/lib/svgweb/svg-uncompressed.js" data-path="/lib/svgweb" type="text/javascript" charset="utf-8"></script>
+    <!--<![endif]-->
+    <script type="text/javascript" src="../../d3.js"></script>
+    <script type="text/javascript" src="../../d3.geo.js"></script>
     <style type="text/css">
 
 @import url("../../lib/jquery-ui/jquery-ui.css");
@@ -15,7 +18,7 @@ body, .ui-widget {
   font: 14px Helvetica Neue;
 }
 
-svg {
+svg, #map_container {
   width: 960px;
   height: 500px;
   border: solid 1px #ccc;
@@ -40,36 +43,45 @@ div {
   </head>
   <body>
     <h3>Mercator Projection</h3>
+    <div id="map_container"></div>
+
     <script type="text/javascript">
 
-// Our projection.
-var xy = d3.geo.mercator(),
-    path = d3.geo.path().projection(xy);
+var states, equator, xy, path;
 
-var states = d3.select("body")
-  .append("svg:svg")
-  .append("svg:g")
-    .attr("id", "states");
+function render() {
+  // Our projection.
+  xy = d3.geo.mercator(),
+  path = d3.geo.path().projection(xy);
 
-var equator = d3.select("svg")
-  .append("svg:line")
-    .attr("x1", "0%")
-    .attr("x2", "100%");
+  states = d3.select("#map_container")
+    .append("svg:svg")
+      .attr("width", 960)
+      .attr("height", 500)
+    .append("svg:g")
+      .attr("id", "states");
 
-d3.json("../data/world-countries.json", function(collection) {
+  equator = d3.select("svg")
+    .append("svg:line")
+      .attr("x1", "0%")
+      .attr("x2", "100%");
 
-  states
-    .selectAll("path")
-      .data(collection.features)
-    .enter().append("svg:path")
-      .attr("d", path)
-    .append("svg:title")
-      .text(function(d) { return d.properties.name; });
+  d3.json("../data/world-countries.json", function(collection) {
 
-  equator
-      .attr("y1", xy([0, 0])[1])
-      .attr("y2", xy([0, 0])[1])
-});
+    states
+      .selectAll("path")
+        .data(collection.features)
+      .enter().append("svg:path")
+        .attr("d", path)
+      .append("svg:title")
+        .text(function(d) { return d.properties.name; });
+
+    equator
+        .attr("y1", xy([0, 0])[1])
+        .attr("y2", xy([0, 0])[1])
+  });
+  
+}
 
 function refresh() {
   states
@@ -86,6 +98,12 @@ function refresh() {
       .text(xy.translate()[0]);
   d3.select("#translate-y span")
       .text(xy.translate()[1]);
+}
+
+if (window.svgweb) {
+  window.onsvgload = render;
+} else {
+  render();
 }
 
     </script><p>
